@@ -1,0 +1,2 @@
+algo: a2c
+learning_rate: 0.0007

@@ -1,0 +1,11 @@
+__pycache__/
+.DS_Store
+.env
+venv/
+.venv/
+*.log
+models/
+logs/
+*.mp4
+*.gif
+.ipynb_checkpoints/

@@ -1,5 +1,7 @@
 import argparse
-import os
+import os, sys
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
 import pandas as pd
 from stable_baselines3 import PPO, A2C
 from envs.game_2048_env import Game2048Env

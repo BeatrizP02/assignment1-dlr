@@ -3,6 +3,7 @@ from gymnasium import spaces
 import numpy as np
 import random
 import math
+from typing import Optional
 
 class Game2048Env(gym.Env):
     """
@@ -15,7 +16,7 @@ class Game2048Env(gym.Env):
     """
     metadata = {"render_modes": ["ansi"]}
 
-    def __init__(self, persona: str = "maximizer", seed: int | None = None):
+    def __init__(self, persona: str = "maximizer", seed: Optional[int] = None):
         super().__init__()
         self.size = 4
         self.persona = persona

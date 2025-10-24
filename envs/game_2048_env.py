@@ -137,3 +137,30 @@ class Game2048Env(gym.Env):
                 if self.board[i, j] == self.board[i+1, j]:
                     return False
         return True
+    
+    def render(self, mode="rgb_array"):
+        """Return a visual frame of the current 2048 board."""
+        import numpy as np
+        import matplotlib.pyplot as plt
+        fig, ax = plt.subplots(figsize=(4, 4))
+        ax.set_xticks([])
+        ax.set_yticks([])
+        ax.set_xlim(-0.5, 3.5)
+        ax.set_ylim(-0.5, 3.5)
+        # Draw tiles
+        for i in range(4):
+            for j in range(4):
+                val = self.board[i, j]
+                # Color intensity based on log value of tile
+                color = plt.cm.Blues(np.log2(val + 1) / 11) if val > 0 else (0.9, 0.9, 0.9)
+                rect = plt.Rectangle((j - 0.5, 3.5 - i), 1, 1, facecolor=color, edgecolor="white")
+                ax.add_patch(rect)
+                if val > 0:
+                    ax.text(j, 3 - i, str(int(val)), va="center", ha="center",
+                            fontsize=14, fontweight="bold")
+        ax.set_title(f"Score: {getattr(self, 'score', 0)}", fontsize=12)
+        fig.canvas.draw()
+        frame = np.frombuffer(fig.canvas.tostring_rgb(), dtype=np.uint8)
+        frame = frame.reshape(fig.canvas.get_width_height()[::-1] + (3,))
+        plt.close(fig)
+        return frame

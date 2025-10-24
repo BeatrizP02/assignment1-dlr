@@ -124,42 +124,63 @@ class Game2048Env(gym.Env):
         # Standard proxy: sum of tiles
         return int(self.board.sum())
 
+    #def _is_done(self):
+    #    if (self.board == 0).any():
+    #        return False
+    #    # Any possible merge?
+    #    for i in range(self.size):
+    #        for j in range(self.size - 1):
+    #            if self.board[i, j] == self.board[i, j+1]:
+    #                return False
+    #    for j in range(self.size):
+    #        for i in range(self.size - 1):
+    #            if self.board[i, j] == self.board[i+1, j]:
+    #                return False
+    #    return True
+
     def _is_done(self):
+        # If there is any empty tile, game is not over
         if (self.board == 0).any():
             return False
-        # Any possible merge?
-        for i in range(self.size):
-            for j in range(self.size - 1):
-                if self.board[i, j] == self.board[i, j+1]:
-                    return False
-        for j in range(self.size):
-            for i in range(self.size - 1):
-                if self.board[i, j] == self.board[i+1, j]:
-                    return False
+        # Check if any move changes the board (like the real 2048 rules)
+        for action in range(4):  # up, down, left, right
+            temp_board = self.board.copy()
+            before = temp_board.copy()
+            # Apply the same rotation logic as in _move()
+            rotations = {0: 1, 1: 3, 2: 0, 3: 2}[action]
+            rotated = np.rot90(temp_board, k=rotations)
+            for r in range(self.size):
+                rotated[r] = self._compress_merge_left(rotated[r])
+            rotated = np.rot90(rotated, k=(4 - rotations) % 4)
+            # If a move changes the board, the game is not done
+            if not np.array_equal(before, rotated):
+                return False
+        # If no move changes the board, game is truly over
         return True
+
     
     def render(self, mode="rgb_array"):
         """Draws a perfect, slightly larger 4x4 2048 grid with score above and full border lines."""
         import numpy as np
         import matplotlib.pyplot as plt
-    
+
         fig, ax = plt.subplots(figsize=(6.5, 6.5))  # slightly larger grid area
         ax.set_xticks([])
         ax.set_yticks([])
         ax.set_aspect("equal")
-    
+
         # --- Background ---
         bg = plt.cm.Blues(0.1)
         fig.patch.set_facecolor(bg)
         ax.set_facecolor(bg)
-    
+
         # --- Grid area (bottom-left = 0,0) ---
         ax.set_xlim(-0.05, 4.05)
         ax.set_ylim(-0.6, 5.0)  # space for score on top and full border below
-    
+
         for spine in ax.spines.values():
             spine.set_visible(False)
-    
+
         # --- Draw tiles ---
         for i in range(4):       # y = row
             for j in range(4):   # x = column
@@ -173,78 +194,28 @@ class Game2048Env(gym.Env):
                     ax.text(j + 0.5, y + 0.5, str(int(val)),
                             ha="center", va="center",
                             fontsize=18, fontweight="bold", color="black")
-    
+
         # --- Add visible white border lines (top & bottom included) ---
         for x in range(5):
             ax.plot([x, x], [0, 4], color=(1, 1, 1, 0.8), linewidth=1.5)
         for y in range(5):
             ax.plot([0, 4], [y, y], color=(1, 1, 1, 0.8), linewidth=1.5)
-    
+
         # --- Draw score above grid ---
         ax.text(2, 4.6, f"Score: {getattr(self, 'score', 0)}",
                 ha="center", va="center", fontsize=17, fontweight="bold",
                 color="black",
                 bbox=dict(facecolor=plt.cm.Blues(0.25),
                           edgecolor='none', boxstyle='round,pad=0.3'))
-    
+
         # --- Fill bottom with background (no gaps) ---
         ax.add_patch(plt.Rectangle((-0.05, -0.05), 4.1, 0.1,
                                    facecolor=plt.cm.Blues(0.10), edgecolor=None, linewidth=0))
-    
+
         # --- Convert to RGB frame ---
         fig.canvas.draw()
         buf = fig.canvas.buffer_rgba()
         frame = np.asarray(buf)[..., :3]
         plt.close(fig)
         return frame
-        #"""Draws a true 4x4 2048 grid with aligned tiles and score above the grid."""
-        #import numpy as np
-        #import matplotlib.pyplot as plt
-    #
-        #fig, ax = plt.subplots(figsize=(6, 6))
-        #ax.set_xticks([])
-        #ax.set_yticks([])
-        #ax.set_aspect("equal")
-    #
-        ## Background color
-        #bg = plt.cm.Blues(0.1)
-        #fig.patch.set_facecolor(bg)
-        #ax.set_facecolor(bg)
-    #
-        ## --- Define exact grid bounds (bottom-left at 0,0) ---
-        #ax.set_xlim(-0.05, 4.05)
-        #ax.set_ylim(-0.5, 5.0)  # extra 1 unit space on top for score
-    #
-        #for spine in ax.spines.values():
-        #    spine.set_visible(False)
-    #
-        ## --- Draw grid tiles, properly aligned ---
-        #for i in range(4):       # row index (y)
-        #    for j in range(4):   # column index (x)
-        #        val = self.board[i, j]
-        #        # compute top-down row mapping (row 0 is bottom)
-        #        y = i
-        #        color = plt.cm.Blues(np.log2(max(val, 1)) / 11) if val > 0 else plt.cm.Blues(0.10)
-        #        rect = plt.Rectangle((j, y), 1, 1,
-        #                             facecolor=color, edgecolor=(1, 1, 1, 0.6), linewidth=1.5)
-        #        ax.add_patch(rect)
-        #        if val > 0:
-        #            ax.text(j + 0.5, y + 0.5, str(int(val)),
-        #                    ha="center", va="center", fontsize=16, fontweight="bold", color="black")
-    #
-        ## --- Draw score above grid ---
-        #ax.text(2, 4.6, f"Score: {getattr(self, 'score', 0)}",
-        #        ha="center", va="center", fontsize=16, fontweight="bold",
-        #        color="black",
-        #        bbox=dict(facecolor=plt.cm.Blues(0.25), edgecolor='none', boxstyle='round,pad=0.3'))
-    #
-        ## --- Extend blue background under tiles to avoid white gap ---
-        #ax.add_patch(plt.Rectangle((-0.05, -0.05), 4.1, 0.1,
-        #                           facecolor=plt.cm.Blues(0.10), edgecolor=None, linewidth=0))
-    #
-        ## Convert to RGB frame
-        #fig.canvas.draw()
-        #buf = fig.canvas.buffer_rgba()
-        #frame = np.asarray(buf)[..., :3]
-        #plt.close(fig)
-        #return frame
+      

@@ -6,11 +6,35 @@ import pandas as pd
 from stable_baselines3 import PPO, A2C
 from envs.game_2048_env import Game2048Env
 
+import csv
+from datetime import datetime
+
+
 def load_model(path: str):
     if "ppo" in os.path.basename(path).lower():
         return PPO.load(path)
     else:
         return A2C.load(path)
+    
+def log_metrics(ep, score, max_tile, steps, persona, algo_name, filename="logs/live_metrics.csv"):
+    os.makedirs("logs", exist_ok=True)
+    fields = ["timestamp", "episode", "score", "max_tile", "steps", "persona", "algorithm"]
+    row = {
+        "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "episode": ep,
+        "score": score,
+        "max_tile": max_tile,
+        "steps": steps,
+        "persona": persona,
+        "algorithm": algo_name
+    }
+    file_exists = os.path.exists(filename)
+    with open(filename, "a", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=fields)
+        if not file_exists:
+            writer.writeheader()
+        writer.writerow(row)
+
 
 def run_episode(model, persona: str, seed: int = 42):
     import time
@@ -63,6 +87,15 @@ def main():
         result = run_episode(model, persona=args.persona, seed=args.seed + ep)
         print(f"Finished episode {ep+1}: score={result['score']}, reward={result['reward']}")
         rows.append(result)
+        log_metrics(
+            ep=ep+1,
+            score=result["score"],
+            max_tile=result["max_tile"],
+            steps=result["steps"],
+            persona=args.persona,
+            algo_name=os.path.basename(args.model).split('_')[0].upper()
+        )
+
 
 
     df = pd.DataFrame(rows)
@@ -74,12 +107,6 @@ def main():
     os.makedirs("logs", exist_ok=True)
     out_csv = "logs/2048_metrics.csv"
 
-    #  Append if file exists, otherwise create it
-    #if os.path.exists(out_csv):
-    #    existing = pd.read_csv(out_csv)
-    #    df = pd.concat([existing, df], ignore_index=True)
-
-    # check if file exists
     file_exists = os.path.exists(out_csv)
 
 # append new data

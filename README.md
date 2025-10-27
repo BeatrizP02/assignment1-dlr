@@ -138,7 +138,7 @@ As with 2048, we used **two personas** that alter the reward structure:
 ## Results
 After training for **1,000,000 timesteps**: 
 
-Detailed metrics, plots, and analysis are available in the [Snake Results Notebook](notebooks/snake_results.ipynb).
+Detailed metrics, plots, and analysis are available in the [Snake Results Notebook](notebooks/snake_analytics.ipynb).
 
 ## 🧾 Reproducibility
 

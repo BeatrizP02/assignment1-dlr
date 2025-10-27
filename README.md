@@ -1,6 +1,6 @@
 # DRL for Automated Testing — 2048 + ____
 
-# 1. 2048 Deep Reinforcement Learning Game (Beatriz Provido)
+# 1. 2048 Deep Reinforcement Learning Game 
 
 ##  Overview
 This part of the project applies **Deep Reinforcement Learning (DRL)** to automate gameplay and testing for the **2048 puzzle game**.  

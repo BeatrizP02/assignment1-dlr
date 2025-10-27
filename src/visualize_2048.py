@@ -1,59 +1,82 @@
-import os, sys
-import imageio
-import numpy as np
+import os
+import sys
 import time
+import argparse
+import numpy as np
 import matplotlib.pyplot as plt
-from stable_baselines3 import A2C, PPO
 
+# 3rd party
+from stable_baselines3 import PPO, A2C
 
-# Add parent directory to import  custom env
+# local imports
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-from envs.game_2048_env import Game2048Env
+from envs.game_2048_env import Game2048Env  # noqa
 
-def visualize_model(model_path, model_class, algo_name):
-    import cv2  # Add here for OpenCV visualization
-    print(f"\n Visualizing {algo_name} ...")
-    model = model_class.load(model_path)
-    env = Game2048Env(persona="maximizer", seed=42)
+
+ALGOS = {"ppo": PPO, "a2c": A2C}
+
+
+def load_model(model_path: str, algo_name: str):
+    """Load a model, allowing model_path with or without '.zip'."""
+    if model_path.endswith(".zip"):
+        model_path = model_path[:-4]  # SB3 appends ".zip" automatically
+    cls = ALGOS[algo_name]
+    return cls.load(model_path)
+
+
+def visualize(model, persona: str, fps: int = 2):
+    """Run a short rendering loop with OpenCV."""
+    import cv2  # import local to avoid hard dep when not visualizing
+
+    env = Game2048Env(persona=persona, seed=42)
     obs, info = env.reset()
-    frames = []
 
-    for step in range(300):
+    win_title = f"2048 — {model.__class__.__name__} ({persona})"
+    delay_ms = max(1, int(1000 / max(1, fps)))
+
+    while True:
         action, _ = model.predict(obs, deterministic=True)
-        obs, reward, done, trunc, info = env.step(int(action))
+        step_out = env.step(int(action))
+        if len(step_out) == 5:
+            obs, reward, terminated, truncated, info = step_out
+            done = terminated or truncated
+        else:
+            obs, reward, done, info = step_out
 
-        # Get rendered frame
+        # Render a frame (expects 'rgb_array')
         frame = env.render(mode="rgb_array") if hasattr(env, "render") else np.zeros((400, 400, 3), dtype=np.uint8)
+
+        # Show with OpenCV
         frame = cv2.resize(frame, (512, 512), interpolation=cv2.INTER_CUBIC)
         frame_bgr = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
+        cv2.imshow(win_title, frame_bgr)
 
-        # Show frame in an OpenCV window
-        cv2.imshow(f"{algo_name} playing 2048", frame_bgr)
-        time.sleep(0.5)
-        # Wait ~300ms or until a key press; if window closed, break cleanly
-        key = cv2.waitKey(1000)
-        if key != -1 or cv2.getWindowProperty(f"{algo_name} playing 2048", cv2.WND_PROP_VISIBLE) < 1:
-            print("\n Visualization manually closed.")
+        key = cv2.waitKey(delay_ms)
+        if key != -1:
             break
-
-        frames.append(frame)
         if done:
-            print(f"\nEpisode finished with score: {info.get('score', 0)}")
+            print(f"Episode finished. score={info.get('score')}, max_tile={info.get('max_tile')}")
             break
 
     env.close()
-    cv2.destroyAllWindows()
+    try:
+        import cv2
+        cv2.destroyWindow(win_title)
+    except Exception:
+        pass
+
+
+def main():
+    parser = argparse.ArgumentParser(description="Visualize a trained 2048 model")
+    parser.add_argument("--algo", choices=["ppo", "a2c"], required=True, help="Algorithm used to train the model")
+    parser.add_argument("--model", required=True, help="Model path WITHOUT .zip (SB3 adds it) or with .zip (both work)")
+    parser.add_argument("--persona", choices=["maximizer", "efficiency"], default="efficiency")
+    parser.add_argument("--fps", type=int, default=2, help="Frames per second for the viewer")
+    args = parser.parse_args()
+
+    model = load_model(args.model, args.algo)
+    visualize(model, persona=args.persona, fps=args.fps)
+
 
 if __name__ == "__main__":
-    print("Select which model to visualize:")
-    print("1. PPO")
-    print("2. A2C")
-    choice = input("Enter 1 or 2: ").strip()
-
-
-if choice == "1":
-    visualize_model("models/ppo_2048_seed7.zip", PPO, "PPO")
-elif choice == "2":
-    visualize_model("models/a2c_2048_seed7.zip", A2C, "A2C")
-else:
-    print("Invalid choice. Please run again and enter 1 or 2.")
+    main()

@@ -144,7 +144,7 @@ class SnakeEnv(gym.Env):
         if ahead_is_danger:
             reward -= 0.1
 
-        # Persona-specific step/hunger rewards
+        # Persona-specific step rewards
         if self.persona == "maximizer":
             reward -= 0.05
             reward -= 0.001 * len(self.snake)  # hunger scales with length

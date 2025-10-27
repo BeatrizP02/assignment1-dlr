@@ -64,7 +64,7 @@ This demonstrates how **reward functions shape agent behavior**, a key component
 ---
 
 ## 🧾 Metrics and Data Collection
-During evaluation, each episode’s performance metrics are automatically logged to `logs/2048_metrics.csv`, including:
+During evaluation, each episode’s performance metrics are automatically logged to `logs/`, including:
 - Total score  
 - Max tile reached  
 - Episode length (steps)  

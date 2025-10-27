@@ -1,5 +1,12 @@
 # DRL for Automated Testing — 2048 + Snake
 
+---
+
+## 🎥 Video Demo
+[![Snake DRL Demo](https://img.youtube.com/vi/YOUR_VIDEO_ID/0.jpg)](https://www.youtube.com/watch?v=XVizDZ8iKxQ)
+
+---
+
 # 1. 2048 Deep Reinforcement Learning Game 
 
 ##  Overview
@@ -99,4 +106,59 @@ python src/plot_results.py
 
 All runs produce metric logs and an updated figure saved to `plots/2048_agent_comparison.png`.
 
+# 2. Snake Deep Reinforcement Learning Game
 
+## Overview
+This section applies **Deep Reinforcement Learning (DRL)** to the classic **Snake game**, automating both gameplay and testing.  
+The aim was to train agents that learn survival and food-collection strategies while testing the correctness and robustness of the Snake environment.
+
+Two DRL algorithms were implemented using **Stable-Baselines3**:
+- **PPO (Proximal Policy Optimization)**
+- **A2C (Advantage Actor-Critic)**
+
+As with 2048, we used **two personas** that alter the reward structure:
+- **Maximizer** – prioritizes eating food quickly and achieving the longest possible snake length.  
+- **Efficiency** – emphasizes survival and minimizing risky moves, leading to safer but slower play.
+
+---
+
+## Architecture
+| Folder | Description |
+|---------|-------------|
+| `envs/snake_env.py` | Custom Gym-style environment for Snake with reward-persona logic. |
+| `src/train.py` | Training script for PPO and A2C agents. |
+| `src/eval.py` | Evaluation script to run episodes and log metrics. |
+| `src/visualize_snake.py` | Visualizes trained Snake agents. |
+| `models/` | Contains saved Snake model weights. |
+| `logs/` | Logs evaluation data to CSV (`snake_metrics.csv`). |
+| `plots/` | Stores Snake performance comparison charts. |
+
+---
+
+## Results
+After training for **1,000,000 timesteps**: 
+
+Detailed metrics, plots, and analysis are available in the [Snake Results Notebook](notebooks/snake_results.ipynb).
+
+## 🧾 Reproducibility
+
+```bash
+# PPO Training
+python src/train.py --algo ppo --env snake --persona efficiency --timesteps 1000000 --seed 7
+python src/train.py --algo ppo --env snake --persona maximizer --timesteps 1000000 --seed 7
+
+# A2C Training
+python src/train.py --algo a2c --env snake --persona efficiency --timesteps 1000000 --seed 7
+python src/train.py --algo a2c --env snake --persona maximizer --timesteps 1000000 --seed 7
+
+# Evaluation
+python src/eval.py --model models/ppo_snake_efficiency_seed7 --episodes 50 --persona efficiency --env snake
+python src/eval.py --model models/a2c_snake_efficiency_seed7 --episodes 50 --persona efficiency --env snake
+python src/eval.py --model models/ppo_snake_maximizer_seed7 --episodes 50 --persona maximizer --env snake
+python src/eval.py --model models/a2c_snake_maximizer_seed7 --episodes 50 --persona maximizer --env snake
+
+# Visualization
+python src/visualize_snake.py --algo ppo --model models/ppo_snake_efficiency_seed7 --persona efficiency
+python src/visualize_snake.py --algo a2c --model models/a2c_snake_efficiency_seed7 --persona efficiency
+python src/visualize_snake.py --algo ppo --model models/ppo_snake_maximizer_seed7 --persona maximizer
+python src/visualize_snake.py --algo a2c --model models/a2c_snake_maximizer_seed7 --persona maximizer

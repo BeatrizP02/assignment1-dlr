@@ -1,39 +1,21 @@
-# DRL for Automated Testing — 2048 + Web Workflow
+# DRL for Automated Testing — 2048 + ____
 
-This repo implements a **Deep Reinforcement Learning (DRL) testing framework** on two targets:
-1) A custom **2048** Gymnasium environment (game), and
-2) A minimal **web workflow** (multi‑page form) for software testing via RL (Selenium).
+# 1. 2048 Deep Reinforcement Learning Game 
 
-It satisfies the assignment requirements:
-- Two non-trivial apps (game + web app)
-- Trained DRL agents (PPO, A2C) — no scripted bots
-- Two reward **personas** (Maximizer, Efficiency)
-- Automatic metrics (CSV) + plots
-- Reproducibility: seeds, pinned deps, clear commands
+##  Overview
+This part of the project applies **Deep Reinforcement Learning (DRL)** to automate gameplay and testing for the **2048 puzzle game**.  
+The goal was to train and evaluate agents that can discover optimal merging strategies and test the game’s performance and logic through autonomous play.
 
-## Project Structure
-```
-envs/
-  game_2048_env.py        # Gymnasium env for 2048 with persona support
-  web_workflow_env.py     # Selenium-based Gym env (stub; HTML in web_app/)
-src/
-  train.py                # Train PPO/A2C on 2048
-  eval.py                 # Evaluate and log metrics
-configs/
-  algo_ppo.yaml
-  algo_a2c.yaml
-  persona_maximizer.yaml
-  persona_efficiency.yaml
-web_app/
-  page1.html              # Step 1 → Step 2
-  page2.html              # Step 2 → Success
-  success.html
-  error.html
-notebooks/
-  analysis.ipynb          # (optional) plots & analysis
-models/                   # saved model artifacts
-logs/                     # CSV logs
-```
+Two DRL algorithms were implemented using **Stable-Baselines3**:
+- **PPO (Proximal Policy Optimization)**
+- **A2C (Advantage Actor-Critic)**
+
+Each agent was tested under two **reward personas**:
+- **Maximizer** – focuses on achieving the highest tile and score possible.  
+- **Efficiency** – focuses on longer survival and fewer unnecessary moves.
+
+This setup demonstrates how **reward design** changes AI behavior and outcomes, aligning with the assignment’s “Personas via Rewards” and “Metrics & Evaluation” goals.
+
 
 ## Quick Start
 ```bash
@@ -42,33 +24,71 @@ source .venv/bin/activate  # (Windows: .venv\Scripts\activate)
 
 pip install -r requirements.txt
 
-python src/train.py --algo ppo --env 2048 --timesteps 200000 --seed 7 --persona maximizer
-python src/eval.py --model models/ppo_2048_seed7.zip --episodes 20 --persona maximizer
 ```
-This writes `logs/2048_metrics.csv`.
+---
 
-## Personas (Reward Designs)
-- **maximizer**: reward = score gain per step
-- **efficiency**: reward = (score gain) / (moves + 1)
+## Architecture
+| Folder | Description |
+|---------|-------------|
+| `envs/game_2048_env.py` | Custom OpenAI Gym-style environment for 2048 with reward-persona logic. |
+| `src/train.py` | Training scripts for PPO and A2C agents. |
+| `src/eval.py` | Evaluation script that logs episode metrics to CSV. |
+| `src/plot_results.py` | Generates comparison plots between algorithms and personas. |
+| `models/` | Saved PPO and A2C model weights. |
+| `logs/` | Stores per-episode metrics (`2048_metrics.csv`). |
+| `plots/` | Contains final learning comparison plot. |
+
+---
+
+
+## Results
+
+The following figure compares the performance of **PPO** and **A2C** agents under the **Maximizer** and **Efficiency** personas.
+
+![2048 Agent Comparison](plots/2048_agent_comparison.png)
+
+**Findings:**
+- **PPO-Maximizer** achieved the highest scores overall, showing strong merging strategies.  
+- **A2C** maintained steadier performance but achieved lower tile peaks.  
+- **Efficiency** personas prioritized survival, leading to lower scores but longer games.  
+
+This demonstrates how **reward functions shape agent behavior**, a key component of DRL testing.
+
+---
+
+## 🧾 Metrics and Data Collection
+During evaluation, each episode’s performance metrics are automatically logged to `logs/2048_metrics.csv`, including:
+- Total score  
+- Max tile reached  
+- Episode length (steps)  
+- Algorithm and persona used  
+
+Example:
+```
+timestamp,episode,score,max_tile,steps,persona,algorithm
+2025-10-26 14:23:12,1,952,128,101,maximizer,PPO
+2025-10-26 14:24:03,2,812,64,89,efficiency,PPO
+```
 
 ## Reproducibility
 ```bash
-python src/train.py --algo ppo --env 2048 --timesteps 200000 --seed 7 --persona maximizer
-python src/train.py --algo a2c --env 2048 --timesteps 200000 --seed 7 --persona efficiency
-python src/eval.py  --model models/ppo_2048_seed7.zip --episodes 50 --persona maximizer
+# PPO Training (if retraining)
+python src/train.py --algo ppo --seed 7
+
+# A2C Training (if retraining)
+python src/train.py --algo a2c --seed 7
+
+# Evaluate both algorithms under both personas
+python src/eval.py --model models/ppo_2048_seed7.zip --episodes 10 --persona maximizer
+python src/eval.py --model models/ppo_2048_seed7.zip --episodes 10 --persona efficiency
+python src/eval.py --model models/a2c_2048_seed7.zip --episodes 10 --persona maximizer
+python src/eval.py --model models/a2c_2048_seed7.zip --episodes 10 --persona efficiency
+
+# Generate comparison plot
+python src/plot_results.py
+
 ```
 
-## Web Workflow (second app)
-`web_app/` contains a **3-step static HTML flow**. `envs/web_workflow_env.py` is a Selenium wrapper scaffold.
-Training on this is optional for the first pass; it demonstrates framework portability.
+All runs produce metric logs and an updated figure saved to `plots/2048_agent_comparison.png`.
 
-## Share on GitHub
-```bash
-git init
-git add .
-git commit -m "Initial commit: DRL 2048 + Web Workflow"
-git branch -M main
-git remote add origin <YOUR_GITHUB_REPO_URL>
-git push -u origin main
-```
-Then add your partner as a collaborator in **Settings → Collaborators**.
+

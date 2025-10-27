@@ -1,123 +1,108 @@
 import argparse
-import os, sys
+import os, sys, time
+import pandas as pd
+
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-import pandas as pd
 from stable_baselines3 import PPO, A2C
 from envs.game_2048_env import Game2048Env
+from envs.snake_env import SnakeEnv
 
-import csv
-from datetime import datetime
 
+
+ALGOS = {"ppo": PPO, "a2c": A2C}
 
 def load_model(path: str):
-    if "ppo" in os.path.basename(path).lower():
-        return PPO.load(path)
+    base = os.path.basename(path).lower()
+    if base.startswith("ppo_") or "ppo" in base:
+        return PPO.load(path), "ppo"
+    elif base.startswith("a2c_") or "a2c" in base:
+        return A2C.load(path), "a2c"
+    return PPO.load(path), "ppo"  # Default to PPO
+
+def make_env(env_name: str, persona: str, seed: int):
+    if env_name == "2048":
+        return Game2048Env(persona=persona, seed=seed)
+    elif env_name == "snake":
+        return SnakeEnv(persona=persona, seed=seed)
     else:
-        return A2C.load(path)
-    
-def log_metrics(ep, score, max_tile, steps, persona, algo_name, filename="logs/live_metrics.csv"):
-    os.makedirs("logs", exist_ok=True)
-    fields = ["timestamp", "episode", "score", "max_tile", "steps", "persona", "algorithm"]
-    row = {
-        "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-        "episode": ep,
-        "score": score,
-        "max_tile": max_tile,
-        "steps": steps,
-        "persona": persona,
-        "algorithm": algo_name
-    }
-    file_exists = os.path.exists(filename)
-    with open(filename, "a", newline="") as f:
-        writer = csv.DictWriter(f, fieldnames=fields)
-        if not file_exists:
-            writer.writeheader()
-        writer.writerow(row)
+        raise ValueError(f"Unknown env: {env_name}")
 
-
-def run_episode(model, persona: str, seed: int = 42):
-    import time
-    env = Game2048Env(persona=persona, seed=seed)
+def run_episode(model, env_name: str, persona: str, seed: int, max_steps: int, ep_idx: int):
+    env = make_env(env_name, persona, seed)
     obs, info = env.reset()
-    done = False
     total_reward = 0.0
     steps = 0
+    final_score = info.get("score", 0)
+    death_type = info.get("death_type", None)
     max_tile = 0
-    final_score = 0
-    max_steps = 300  # stop early
-    start_time = time.time()
-
-    print(f"Running episode with persona='{persona}'...", flush=True)
+    empty_tiles = 0
+    done = False
+    start = time.time()
 
     while not done and steps < max_steps:
-        # Predict next action
         action, _ = model.predict(obs, deterministic=True)
-        obs, reward, done, trunc, info = env.step(int(action))
-        total_reward += reward
+        out = env.step(int(action))
+        if len(out) == 5:
+            obs, reward, terminated, truncated, info = out
+            done = terminated or truncated
+        else:
+            obs, reward, done, info = out
+
+        total_reward += float(reward)
         steps += 1
-        max_tile = max(max_tile, int(env.board.max()))
         final_score = info.get("score", final_score)
+        death_type = info.get("death_type", death_type)
 
-        # Print progress every 50 steps
-        if steps % 50 == 0:
-            print(f"  Step {steps}: Score={final_score}, Max Tile={max_tile}", flush=True)
+        if env_name == "2048":
+            max_tile = max(max_tile, info.get("max_tile", 0))
+            empty_tiles = info.get("empty_tiles", empty_tiles)
 
-        # Hard stop if it runs more than 10 seconds
-        if time.time() - start_time > 10:
-            print("Timeout reached (10s) — ending early.")
+        if time.time() - start > 20:
+            print("Timeout (20s) — ending episode early.")
             break
 
-    print(f"Episode done after {steps} steps — Final Score: {final_score}\n", flush=True)
-    return {"reward": total_reward, "steps": steps, "score": final_score, "max_tile": max_tile}
+    env.close()
 
+    row = {
+        "episode": ep_idx + 1,
+        "env": env_name,
+        "persona": persona,
+        "reward": round(total_reward, 3),
+        "steps": steps,
+        "score": final_score,
+    }
+    if env_name == "snake":
+        row["death_type"] = death_type
+    if env_name == "2048":
+        row["max_tile"] = max_tile
+        row["empty_tiles"] = empty_tiles
+    return row
 
 def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--model", required=True)
-    parser.add_argument("--episodes", type=int, default=20)
-    parser.add_argument("--persona", choices=["maximizer","efficiency"], default="maximizer")
+    parser = argparse.ArgumentParser(description="Evaluate DRL models for Snake or 2048")
+    parser.add_argument("--env", choices=["2048", "snake"], required=True)  # CHANGED: allow both envs
+    parser.add_argument("--model", required=True, help="Path to trained model (.zip)")
+    parser.add_argument("--episodes", type=int, default=10)
+    parser.add_argument("--persona", choices=["maximizer", "efficiency"], default="efficiency")
     parser.add_argument("--seed", type=int, default=42)
+    parser.add_argument("--max-steps", type=int, default=1000, help="Per-episode step cap")
+    parser.add_argument("--log-dir", type=str, default="logs", help="Directory for evaluation logs")
     args = parser.parse_args()
 
-    model = load_model(args.model)
+    model, algo_name = load_model(args.model)
+
+    os.makedirs(args.log_dir, exist_ok=True)
     rows = []
     for ep in range(args.episodes):
-        print(f"Running episode {ep+1}/{args.episodes}...", flush=True)
-        result = run_episode(model, persona=args.persona, seed=args.seed + ep)
-        print(f"Finished episode {ep+1}: score={result['score']}, reward={result['reward']}")
-        rows.append(result)
-        log_metrics(
-            ep=ep+1,
-            score=result["score"],
-            max_tile=result["max_tile"],
-            steps=result["steps"],
-            persona=args.persona,
-            algo_name=os.path.basename(args.model).split('_')[0].upper()
-        )
-
-
+        row = run_episode(model, args.env, args.persona, args.seed + ep, args.max_steps, ep_idx=ep)
+        rows.append(row)
 
     df = pd.DataFrame(rows)
-    algo_name = os.path.basename(args.model).split('_')[0].upper()
-    df["algorithm"] = algo_name
-    df["persona"] = args.persona 
-    df["reward"] = df["reward"].round(2)
-
-    os.makedirs("logs", exist_ok=True)
-    out_csv = "logs/2048_metrics.csv"
-
-    file_exists = os.path.exists(out_csv)
-
-# append new data
-    if file_exists:
-        existing = pd.read_csv(out_csv)
-        df = pd.concat([existing, df], ignore_index=True)
-
-    df.to_csv(out_csv, index=False)
-    print(df.describe())
-    print(f"Appended results to {out_csv}")
-
+    out_path = os.path.join(args.log_dir, f"eval_{args.env}_{algo_name}_{args.persona}.csv")
+    df.to_csv(out_path, index=False)
+    print(f"Saved evaluation results to {out_path}")
+    print(df.describe(include="all"))
 
 if __name__ == "__main__":
     main()

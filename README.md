@@ -1,4 +1,4 @@
-# DRL for Automated Testing — 2048 + ____
+# DRL for Automated Testing — 2048 + Snake
 
 # 1. 2048 Deep Reinforcement Learning Game 
 
@@ -72,17 +72,25 @@ timestamp,episode,score,max_tile,steps,persona,algorithm
 
 ## Reproducibility
 ```bash
-# PPO Training (if retraining)
-python src/train.py --algo ppo --seed 7
+# PPO Training 
+python src/train.py --algo ppo --env 2048 --persona efficiency --timesteps 20000 --seed 7
+python src/train.py --algo ppo --env 2048 --persona maximizer --timesteps 20000 --seed 7
 
 # A2C Training (if retraining)
-python src/train.py --algo a2c --seed 7
+python src/train.py --algo a2c --env 2048 --persona efficiency --timesteps 20000 --seed 7
+python src/train.py --algo a2c --env 2048 --persona maximizer --timesteps 20000 --seed 7
 
 # Evaluate both algorithms under both personas
-python src/eval.py --model models/ppo_2048_seed7.zip --episodes 10 --persona maximizer
-python src/eval.py --model models/ppo_2048_seed7.zip --episodes 10 --persona efficiency
-python src/eval.py --model models/a2c_2048_seed7.zip --episodes 10 --persona maximizer
-python src/eval.py --model models/a2c_2048_seed7.zip --episodes 10 --persona efficiency
+python src/eval.py --model models/ppo_2048_efficiency_seed7 --episodes 50 --persona efficiency --env 2048
+python src/eval.py --model models/a2c_2048_efficiency_seed7 --episodes 50 --persona efficiency --env 2048
+python src/eval.py --model models/ppo_2048_maximizer_seed7 --episodes 50 --persona maximizer --env 2048
+python src/eval.py --model models/a2c_2048_maximizer_seed7 --episodes 50 --persona maximizer --env 2048
+
+# Visualize
+python src/visualize_2048.py --algo ppo --model models/ppo_2048_efficiency_seed7 --persona efficiency
+python src/visualize_2048.py --algo a2c --model models/a2c_2048_efficiency_seed7 --persona efficiency
+python src/visualize_2048.py --algo ppo --model models/ppo_2048_maximizer_seed7 --persona maximizer
+python src/visualize_2048.py --algo a2c --model models/a2c_2048_maximizer_seed7 --persona maximizer
 
 # Generate comparison plot
 python src/plot_results.py
